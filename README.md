@@ -15,6 +15,7 @@ while you work---not another giant assistant dashboard.
 ### Capri on the desktop
 
 ![Capri desktop pet](assets/ui/capri1.png)
+![Capri desktop pet](assets/ui/capri2.png)
 
 ### Capri with the chat terminal open
 
