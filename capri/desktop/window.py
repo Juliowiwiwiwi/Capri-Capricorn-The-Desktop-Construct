@@ -12,6 +12,7 @@ Sleep kicks in after 60 seconds of no interaction.
 """
 
 import random
+from pathlib import Path
 from PySide6.QtCore  import Qt, QTimer, QPoint, QSize
 from PySide6.QtGui   import QPixmap, QPainter, QColor, QFont, QPen
 from PySide6.QtWidgets import (
@@ -44,6 +45,22 @@ class CapriWindow(QWidget):
         self._press_global_pos: QPoint | None = None
         self._chat_window = None
         self._is_sleeping = False
+        self._idle_frames = []
+
+        for filename in (
+            "capri_idle1.png",
+            "capri_idle2.png",
+            "capri_idle3.png",
+        ):
+            image_path = Path(self.controller.assets_dir) / filename
+            pixmap = QPixmap(str(image_path))
+
+            if not pixmap.isNull():
+                self._idle_frames.append(pixmap)
+            else:
+                print(f"[CapriWindow] Could not load idle frame: {image_path}")
+
+        self._idle_frame_index = 0
 
         self._setup_window()
         self._setup_ui()
@@ -126,10 +143,30 @@ class CapriWindow(QWidget):
         self._sleep_timer.timeout.connect(self._go_to_sleep)
         self._sleep_timer.start(SLEEP_AFTER_MS)
 
-    # ── image display ─────────────────────────────────────────────────
+        # Idle animation — 3-frame loop
+        self._idle_timer = QTimer(self)
+        self._idle_timer.timeout.connect(self._animate_idle)
+        self._idle_timer.start(150)  # ~6.7 frame updates per second
 
+    # ── image display ─────────────────────────────────────────────────
     def _update_image(self, path: str) -> None:
-        """Load and display the image at path (or a placeholder)."""
+        """Load and display the correct image for Capri's current state."""
+
+        # Use the first idle animation frame whenever Capri returns to idle
+        if (
+            self.controller.current_state() == CapriState.IDLE
+            and self._idle_frames
+        ):
+            self._idle_frame_index = 0
+            pixmap = self._idle_frames[0].scaled(
+                WINDOW_SIZE,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            self.image_label.setPixmap(pixmap)
+            return
+
+        # Display the normal image for other states: happy, blink, sleeping
         if path:
             pixmap = QPixmap(path)
             if not pixmap.isNull():
@@ -141,7 +178,7 @@ class CapriWindow(QWidget):
                 self.image_label.setPixmap(pixmap)
                 return
 
-        # No image — draw a cyberpunk placeholder
+        # No image found — draw the placeholder
         self._draw_placeholder()
 
     def _draw_placeholder(self) -> None:
@@ -173,6 +210,28 @@ class CapriWindow(QWidget):
         self.image_label.setPixmap(placeholder)
 
     # ── animation helpers ─────────────────────────────────────────────
+    def _animate_idle(self) -> None:
+        """Cycle idle frames only while Capri is idle."""
+        if self._is_sleeping:
+            return
+
+        if self.controller.current_state() != CapriState.IDLE:
+            return
+
+        if not self._idle_frames:
+            return
+
+        self._idle_frame_index = (
+            self._idle_frame_index + 1
+        ) % len(self._idle_frames)
+
+        pixmap = self._idle_frames[self._idle_frame_index].scaled(
+            WINDOW_SIZE,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+
+        self.image_label.setPixmap(pixmap)
 
     def _schedule_next_blink(self) -> None:
         jitter = random.randint(-800, 800)
