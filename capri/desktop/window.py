@@ -62,6 +62,23 @@ class CapriWindow(QWidget):
 
         self._idle_frame_index = 0
 
+        self._sleeping_frames = []
+
+        for filename in (
+            "capri_sleeping0.png",
+            "capri_sleeping1.png",
+            "capri_sleeping2.png",
+        ):
+            image_path = Path(self.controller.assets_dir) / filename
+            pixmap = QPixmap(str(image_path))
+
+            if not pixmap.isNull():
+                self._sleeping_frames.append(pixmap)
+            else:
+                print(f"[CapriWindow] Could not load sleeping frame: {image_path}")
+
+        self._sleeping_frame_index = 0
+
         self._setup_window()
         self._setup_ui()
         self._setup_timers()
@@ -142,6 +159,10 @@ class CapriWindow(QWidget):
         self._sleep_timer.setSingleShot(True)
         self._sleep_timer.timeout.connect(self._go_to_sleep)
         self._sleep_timer.start(SLEEP_AFTER_MS)
+        #sleep animaitton i added this later so check later:
+        self._sleeping_timer = QTimer(self)
+        self._sleeping_timer.timeout.connect(self._animate_sleeping)
+        self._sleeping_timer.start(300)
 
         # Idle animation — 3-frame loop
         self._idle_timer = QTimer(self)
@@ -149,10 +170,22 @@ class CapriWindow(QWidget):
         self._idle_timer.start(150)  # ~6.7 frame updates per second
 
     # ── image display ─────────────────────────────────────────────────
+    
     def _update_image(self, path: str) -> None:
         """Load and display the correct image for Capri's current state."""
 
-        # Use the first idle animation frame whenever Capri returns to idle
+        # Sleeping animation: start from the first frame
+        if self._is_sleeping and self._sleeping_frames:
+            self._sleeping_frame_index = 0
+            pixmap = self._sleeping_frames[0].scaled(
+                WINDOW_SIZE,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            self.image_label.setPixmap(pixmap)
+            return
+
+        # Idle animation: start from the first frame
         if (
             self.controller.current_state() == CapriState.IDLE
             and self._idle_frames
@@ -166,7 +199,7 @@ class CapriWindow(QWidget):
             self.image_label.setPixmap(pixmap)
             return
 
-        # Display the normal image for other states: happy, blink, sleeping
+        # Normal image for other states: happy, blink, etc.
         if path:
             pixmap = QPixmap(path)
             if not pixmap.isNull():
@@ -180,6 +213,28 @@ class CapriWindow(QWidget):
 
         # No image found — draw the placeholder
         self._draw_placeholder()
+
+    
+    def _animate_sleeping(self) -> None:
+        if (
+            not self._is_sleeping
+            or not self._sleeping_frames
+        ):
+            return
+
+        self._sleeping_frame_index = (
+            self._sleeping_frame_index + 1
+        ) % len(self._sleeping_frames)
+
+        pixmap = self._sleeping_frames[
+            self._sleeping_frame_index
+        ].scaled(
+            WINDOW_SIZE,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+
+        self.image_label.setPixmap(pixmap)
 
     def _draw_placeholder(self) -> None:
         """Drawn when art files aren't present yet."""
