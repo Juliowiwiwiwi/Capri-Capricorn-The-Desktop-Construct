@@ -41,6 +41,8 @@ class CapriWindow(QWidget):
         super().__init__()
         self.controller = controller
         self._drag_start_pos: QPoint | None = None
+        self._press_global_pos: QPoint | None = None
+        self._chat_window = None
         self._is_sleeping = False
 
         self._setup_window()
@@ -52,6 +54,22 @@ class CapriWindow(QWidget):
 
         # Show initial image
         self._update_image(self.controller.current_image_path())
+
+    def set_chat_window(self, chat_window) -> None:
+        """Attach the chat panel created by main.py."""
+        self._chat_window = chat_window
+
+    def _toggle_chat(self) -> None:
+        """Show or hide the chat panel when Capri is clicked."""
+        if self._chat_window is None:
+            return
+        if self._chat_window.isVisible():
+            self._chat_window.hide()
+        else:
+            self._chat_window.show()
+            self._chat_window.raise_()
+            self._chat_window.activateWindow()
+        self._reset_sleep_timer()
 
     # ── window setup ─────────────────────────────────────────────────
 
@@ -194,6 +212,7 @@ class CapriWindow(QWidget):
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            self._press_global_pos = event.globalPosition().toPoint()
             self._drag_start_pos = event.globalPosition().toPoint() - self.pos()
             if self._is_sleeping:
                 self._wake_up()
@@ -206,7 +225,16 @@ class CapriWindow(QWidget):
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            release_pos = event.globalPosition().toPoint()
+            was_click = (
+                self._press_global_pos is not None
+                and (release_pos - self._press_global_pos).manhattanLength()
+                    < QApplication.startDragDistance()
+            )
             self._drag_start_pos = None
+            self._press_global_pos = None
+            if was_click and not self._is_sleeping:
+                self._toggle_chat()
 
     def mouseDoubleClickEvent(self, event) -> None:
         """Double-click = poke = happy reaction."""
