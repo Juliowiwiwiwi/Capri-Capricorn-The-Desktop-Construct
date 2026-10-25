@@ -138,7 +138,7 @@ The main Python package is organised approximately like this:
 
 ``` text
 Capri/
-├── Modelfile                  # Ollama model configuration (if kept in this repo)
+├── Modelfile                  # Ollama model configuration 
 ├── capri/
 │   ├── main.py                # Application entry point
 │   ├── ai/
@@ -232,6 +232,4 @@ character code.
 
 ## License
 
-No license has been specified yet. Add a `LICENSE` file and update this
-section before distributing the project or accepting external
-contributions.
+
