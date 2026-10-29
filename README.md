@@ -1,4 +1,4 @@
-# Capri
+# Capri (*wont be working on this for a week due to other commitments.. will be resumed shortly)
 
 *A little cyberpunk companion for your Windows desktop.*
 
